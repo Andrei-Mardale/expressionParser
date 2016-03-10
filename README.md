@@ -14,7 +14,7 @@ Given a set of rules for a language described in the statement, the program will
 The input should follow the rules described in the statement. It may contain semantic errors which the program will detect and announce.
 
 #Output
-The programm will output 3 files:
+The program will output 3 files:
 * the expression tree
 * the semantic analysis, and if the expression passes this test
 * the final results of the given expression
