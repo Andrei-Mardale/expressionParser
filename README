@@ -1,0 +1,65 @@
+MOD DE RULARE: 
+ Metoda 1) make run -> java Main.Main nume_fisier -> make clean
+ Metoda 2) ./run.sh nume_fisier (pentru compilare si rulare)
+ 					 ./run.sh (fara argumente) (pentru curatare)
+ 					 
+I) Clase arbore
+	Arborele este reprezentat de clasa ExpressionTree care contine un nod radacina si un numar de linie - folosit la printarea erorilor sintactice.
+	Clasa de baza pentru elementele din arbore este Node.
+	Ierarhia claselor ce mostenesc din nod arata astfel:
+	- Node
+		- Operator
+			- Addition
+			- Multiplication
+			- Ternary
+			- Unary - de mentionat ca in implementarea mea, tratez si cazuri de tipul a = -(var + c) de exemplu; adica operatorul unar este nod non-terminal si poate fi aplicat unei expresii. Am facut aceasta decize pentru a mari gradul de generalitate al inputurile ce pot fi tratate de evaluator. (deci unarii vor fi expresii in prima faza dupa care se vor reduce la frunze - ex: E -> -T sau E -> +T)
+			
+		- Operand
+			- Constant
+			- Variable
+				
+	Parsarea si printarea se fac in 2 pachete diferite construiesc special pentru acest scop:
+		- ExpressionParser
+		- ExpressionTreePrinter
+	
+	In Operator este definita prioritatea operatiilor - aici se pot face modificari ce altereaza modul in care este construit arborele. Aceste variabile sunt accesibile din exterior astfel incat o operatie este recunoscuta unic prin valoarea prioritatii (Ex: operatorii unari au prioritate 0, inmultirea are prioritate 1 etc.). In acest mod determin ce fel de operator este stocat intr-un nod de tip Operator. De mentionat faptul setarea valorii pentru prioritate este facute prin recunoasterea caracterului pentru operatie. Deci operatorii unari ar corespunde cu cei binari (+ si -). Pentru a evita acest caz particular am ales sa dau simboluri speciale pentru unari: # pentru + si ~ pentru -. Aceasta este doar o conventie interna si nu se reflecta supra datelor de output deoarece dupa setarea prioritatii caractere vor fi setate la forma standard.
+	Mai departe am ales sa extind aceasta clasa cu 4 sub-clase care implementeaza metoda evaluate. Astfel la parcurgerea arborelui nu trebuie cunoscuta natura unui operator la evaluare. Stiu ca mereu voi apela metoda evaluate si voi reduce nodul Operator la un nod frunza Constant.
+	
+	Operand este o super-clasa pentru cele 2 tipuri de operanzi care contine o singura functie - getValue() - care intoarce valoarea numerica a operandului. De mentionat este ca functiei evaluate va determina un apel recursiv pentru tot subarborele care are ca radacina nodul din care se face apelul. Astfel un intreg subarbore va fi redus la o frunza. Exceptie face operatorul '=' care nu este redus la frunza ci este lasat sub forma de arbore cu 2 frunze (variabila in stanga si constanta/variabila in dreapta), facand doar atribuirea de valoare pentru variabila din stanga.
+	Clasa Constant are o implementare triviala: 2 constructori ce permit initializarea de la un string, respectiv valoare numerica si un getter pentru valoarea numerica.
+	Clasa Variable contine doar numele si un hash global care face asocierea (nume, valoare). Valoarea este implementata ca o clasa interna ce contine valoarea numerica si un flag care este adevarat pentru initializare. Alta metoda ar fi fost sa consider neinitializata o variabila care are valoarea Integer.MIN_VALUE dar aceasta nu ar fi fost o implementare completa. Accesarea valorii unei variabile va fi mereu precedata de verificarea faptului ca acea variabila este defapt initializata.
+
+II) Ordinea de prelucrare a datelor
+	Presupunand ca singurele erori care pot aparea sunt cele de la nivelul analiza semantica (deci nu apar expresii incomplete sau paranteze neechilibrate) etapele rezolvarii sunt:
+		- parsare expresie si construire arbore
+		- printare arbore
+		- analiza semantica
+		- daca analiza semantica intoarce true atunci se trece la evaluarea arborelui
+
+III) Parsarea expresiei
+	Este facuta de o clasa ne-instantiabila speciala care contine o singura metoda publica ce face trecerea expresie->arbore.
+	Construiesc expresia folosind 2 stive pentru operanzi respectiv operatori. Tinand cont de paranteze si de ordinea operatiilor definita in Operator se extrag elemente din stiva de operatori carora li se ataseaza copii din stiva de operanzi (unul sau doi) si se reintroduc in stiva de operanzi. Algoritmul este asemanator cu cel pentru tranformarea infix->postfix.
+	Aici tin cont de conventia simbolurilor pentru operatori unari mentionata la I).
+	La terminarea algoritmului ar trebui sa ramana in stiva de operanzi un singur nod care este radacina arborelui.
+	Cele 2 stive sunt statice si sunt alocate o singura data pentru o rulare de program.
+
+IV) Printare nivele arbore
+	Aici mi-am declarat o clasa auxiliara sub forma unei clase interne pe care am numit-o Symbol. Aceasta face asocierea intre un symbol (E, T, F, N) si nodul corespunzator.
+	Imi definesc un punct de plecare (un singur E - care corespunde radacinii).
+	De aici incolo parcurg "stringul" de simboluri si expandez fiecare E uitand-uma la nodul corespunzator si sar peste noile simboluri E pe care le-am obtinut (aceasta vor fi tratate la urmatoarea parcurgere deoarece apartin nivelului urmator).
+	Algoritmul se opreste atunci cand nu mai exista niciun e in "string".
+	Acest "string" este defapt un ArrayList<Symbol>
+	De mentionat ca N vor fi doar frunzele care au ca parinte un ternar. Daca un ternar este parinte pentru o expresie E care este de forma (T+T) de exemplu atunci aceasta va aparea sub aceasta forma in output.
+			
+V) Analiza semantica
+	Tin cont de restrictiile din enunt si verific 2 proprietati ale arborelui:
+		- daca fiul stang al radacinii este variabila (verificare este triviala si se face cu instaceof)
+		- daca toate variabilele din sub-arborele drept al radacinii sunt declarata si initializate (fac asta cu o parcurgere in adancime in inordine - SRD)
+
+VI) Evaluarea expresiei
+	Daca analiza sematica a intors valoarea true atunci incep evaluarea arborelui in mod recursiv asa cum a fost descrisa la I).
+
+VII) Operatii IO
+	Deschid concomitent fisierul de intrare si cele 3 fisiere de iesire. Daca fisierul de intrare nu este dat sau nu este existent programul va da un mesaj de eroare.
+	Pentru fiecare linie din fisierul de intrare va fi scris cate o serie de date output la fiecare din cele 3 fisiere de iesire in ordinea in care se realizeaza operatiile.
+	
